@@ -1,0 +1,37 @@
+name: Build extension
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@v2
+      - name: Add nuget to PATH
+        uses: nuget/setup-nuget@v1
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v1.0.2
+      - name: Update version
+        run: |
+          (Get-Content -Path MyCoolVSExtension\source.extension.vsixmanifest) |
+            ForEach-Object {$_ -Replace '1.0.0', '1.0.${{ github.run_number }}'} |
+              Set-Content -Path MyCoolVSExtension\source.extension.vsixmanifest
+          (Get-Content -Path MyCoolVSExtension\Properties\AssemblyInfo.cs) |
+            ForEach-Object {$_ -Replace '1.0.0', '1.0.${{ github.run_number }}'} |
+              Set-Content -Path MyCoolVSExtension\Properties\AssemblyInfo.cs
+          (Get-Content -Path MyCoolVSExtension\MyCoolVSExtension.cs) |
+            ForEach-Object {$_ -Replace '1.0.0', '1.0.${{ github.run_number }}'} |
+              Set-Content -Path MyCoolVSExtension\MyCoolVSExtension.cs
+      - name: Restore
+        run: nuget restore
+      - name: Build
+        run: msbuild /p:configuration=Release /p:DeployExtension=false /p:ZipPackageCompressionLevel=normal
+      - uses: actions/upload-artifact@v2
+        with:
+          name: MyCoolVSExtension.vsix
+          path: MyCoolVSExtension\bin\Release\MyCoolVSExtension.vsix
